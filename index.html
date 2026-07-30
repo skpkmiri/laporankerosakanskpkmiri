@@ -62,7 +62,7 @@
         .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        #toast { transition: opacity 0.3s ease-in-out; }
+        #toast { transition: opacity 0.3s ease-in-out; z-index: 100000; }
 
         /* Gaya Khusus Untuk Jadual Format Rasmi (PDF) */
         .pdf-table td { padding: 6px 12px; }
@@ -240,13 +240,15 @@
 
                     <!-- Description & AI -->
                     <div class="border-t pt-4">
-                        <div class="flex justify-between items-end mb-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-2">
                             <label class="block text-sm font-medium text-gray-700">Penerangan / Catatan Kerosakan</label>
-                            <button type="button" onclick="generateAI()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700 transition flex items-center">
-                                <i class="fas fa-magic mr-2"></i> Jana GEMINI AI
-                            </button>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="generateAI()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700 transition flex items-center shadow-sm">
+                                    <i class="fas fa-magic mr-2"></i> Jana Ayat Rasmi
+                                </button>
+                            </div>
                         </div>
-                        <p class="text-xs text-gray-500 mb-2">Nota: Anda boleh taip kata kunci ringkas (contoh: "dinding retak teruk, air masuk") dan tekan butang Jana GEMINI AI untuk mendapatkan ayat laporan rasmi.</p>
+                        <p class="text-xs text-gray-500 mb-2">Nota: Anda boleh taip kata kunci ringkas (contoh: "dinding retak teruk, air masuk") dan tekan butang di atas untuk mendapatkan ayat laporan rasmi.</p>
                         <textarea id="description" rows="4" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" placeholder="Sila masukkan keterangan kerosakan..."></textarea>
                     </div>
 
@@ -324,22 +326,17 @@
     </div>
 
     <!-- FORMAT CETAKAN / PDF RASMI KPM/JKR -->
-    <!-- Elemen ini asalnya disembunyikan. Ia akan dirender untuk PDF sahaja -->
     <div id="print-area" class="hidden bg-white text-black flex-col" style="font-family: Arial, Helvetica, sans-serif; font-size: 12px;">
         
         <!-- Header Borang -->
         <div class="flex items-center justify-between mb-3 border-b-[2px] border-black pb-3 shrink-0">
-            <!-- Logo diletakkan dengan format dimensi kekal untuk render PDF yang tepat -->
             <div style="width: 80px; height: 80px;" class="flex-shrink-0 flex items-center justify-center">
                 <img id="p-logo" src="logo.png" alt="Logo SKPK Miri" style="max-width: 100%; max-height: 100%; display: block;" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_the_Ministry_of_Education_Malaysia.svg/200px-Emblem_of_the_Ministry_of_Education_Malaysia.svg.png'">
             </div>
-            
             <div class="flex-1 text-center px-2">
                 <h1 class="font-bold text-[16px] uppercase tracking-wide">Borang Laporan Kerosakan Bangunan</h1>
                 <h2 class="font-bold text-[14px] uppercase mt-1 text-gray-800">Sekolah Kebangsaan Pendidikan Khas Miri</h2>
             </div>
-            
-            <!-- Ruangan kosong untuk menyeimbangkan posisi tajuk tepat di tengah -->
             <div style="width: 80px;" class="flex-shrink-0"></div>
         </div>
 
@@ -883,86 +880,40 @@
             }
         }
 
-        // ================= KEMASKINI GENERATE AI =================
+        // ================= KEMASKINI JANA AYAT (TANPA POPUP / TANPA API KEY) =================
         window.generateAI = async function() {
             const cat = document.getElementById('roomCategory').value;
             let room = cat;
             if(cat.includes('BILIK DARJAH') && document.getElementById('classroomType').value) {
-                room += " - " + document.getElementById('classroomType').value;
+                room += " " + document.getElementById('classroomType').value;
             }
             const condition = document.getElementById('physicalCondition').value;
-            const currentDesc = document.getElementById('description').value;
+            const currentDesc = document.getElementById('description').value.trim();
 
             if(!cat || !condition) {
-                showToast("Sila pilih Kategori Bilik dan Keadaan Fizikal terlebih dahulu", "red");
+                showToast("Sila pilih Kategori Bilik dan Keadaan Fizikal terlebih dahulu sebelum menjana ayat.", "red");
                 return;
             }
 
-            // Meminta API Key jika belum wujud
-            let apiKey = localStorage.getItem('gemini_api_key');
-            if (!apiKey) {
-                apiKey = prompt("Sila masukkan API Key Gemini anda (Dapatkan percuma dari Google AI Studio):\n\n*Key anda akan disimpan dengan selamat di dalam browser ini.");
-                if (!apiKey || apiKey.trim() === "") {
-                    showToast("API Key diperlukan untuk menggunakan ciri AI ini.", "amber");
-                    return;
-                }
-                localStorage.setItem('gemini_api_key', apiKey.trim());
-            }
+            showLoading("Menjana ayat laporan rasmi...");
 
-            showLoading("Menjana ayat laporan dengan AI...");
-            
-            const promptText = `Bertindak sebagai kakitangan sekolah rasmi di Malaysia. Tuliskan satu perenggan formal (sekitar 3-4 ayat) untuk laporan kerosakan sekolah. 
-            Jenis bilik: ${room}.
-            Kerosakan fizikal: ${condition}.
-            Catatan/Kata Kunci Pelapor: ${currentDesc || 'tiada catatan'}.
-            Gunakan laras bahasa Melayu rasmi dan formal (surat rasmi kerajaan). Jangan mulakan dengan salam, terus kepada penerangan kerosakan.`;
-
-            try {
-                // Menukar model kepada gemini-1.5-flash untuk kestabilan 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            // Menggunakan Sistem Templat Pintar (Tidak perlukan Google API)
+            setTimeout(() => {
+                let ayat = `Laporan kerosakan ini merujuk kepada kawasan ${room}. Terdapat kerosakan fizikal yang telah dikenal pasti pada bahagian ${condition}. `;
                 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }],
-                    })
-                });
-                
-                // KEMASKINI: Penangkapan ralat (error handling) yang lebih menyeluruh
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    const apiErrorMsg = errorData.error?.message || `HTTP Ralat ${response.status}`;
-                    
-                    if (response.status === 400 || response.status === 403 || response.status === 401) {
-                        localStorage.removeItem('gemini_api_key'); // Padam key lama supaya prompt keluar semula
-                        throw new Error("API Key tidak sah atau ralat kebenaran. Sila tekan butang Jana semula untuk masukkan key baru.");
-                    } else if (response.status === 429) {
-                        throw new Error("Kuota API Key anda telah habis (Terlalu banyak permintaan). Sila cuba sebentar lagi.");
-                    } else {
-                        throw new Error("Ralat API: " + apiErrorMsg);
-                    }
-                }
-
-                const data = await response.json();
-                
-                if(data.candidates && data.candidates[0].content) {
-                    const text = data.candidates[0].content.parts[0].text;
-                    document.getElementById('description').value = text.trim();
-                    showToast("Teks berjaya dijana", "green");
+                if (currentDesc) {
+                    ayat += `Berdasarkan pemerhatian awal, ${currentDesc}. `;
                 } else {
-                    throw new Error("AI tiada respon: " + (data.error?.message || "Ralat tidak diketahui"));
+                    ayat += `Kerosakan ini didapati menjejaskan fungsi asal bahagian tersebut. `;
                 }
-            } catch (error) {
-                console.error("AI Error:", error);
-                showToast(error.message || "Gagal menjana teks AI. Sila semak API Key.", "red");
-                // Memadam kunci supaya pengguna diminta semula jika ia tidak sah
-                if (error.message.includes("tidak sah")) {
-                    localStorage.removeItem('gemini_api_key');
-                }
-            } finally {
+                
+                ayat += `Tindakan pembaikan atau penyiasatan lanjut amat diperlukan dengan kadar segera bagi memastikan keselamatan dan keselesaan warga sekolah terjamin.`;
+                
+                document.getElementById('description').value = ayat;
+                
                 hideLoading();
-            }
+                showToast("Ayat rasmi berjaya dijana!", "green");
+            }, 600); // Simulasi masa pantas
         };
 
         document.getElementById('report-form').addEventListener('submit', async (e) => {
@@ -1075,7 +1026,6 @@
             });
         }
 
-        // Logic Mengisi Data Ke Dalam Kawasan Print/PDF
         function fillPrintArea(rep) {
             const serialNo = rep.serialNo || 'A01';
             const dateParts = rep.date.split('-');
@@ -1117,22 +1067,15 @@
             window.print();
         }
 
-        // Fungsi bantuan untuk memastikan imej dimuat sebelum PDF dijana
         function preloadImage(url) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
-                // img.crossOrigin = 'Anonymous'; // Jika menggunakan URL luar, uncomment ini
                 img.onload = () => resolve(url);
-                img.onerror = () => {
-                    console.warn(`Gagal memuat imej PDF: ${url}`);
-                    // Fallback logo jika gagal
-                    resolve('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_the_Ministry_of_Education_Malaysia.svg/200px-Emblem_of_the_Ministry_of_Education_Malaysia.svg.png'); 
-                };
+                img.onerror = () => resolve('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_the_Ministry_of_Education_Malaysia.svg/200px-Emblem_of_the_Ministry_of_Education_Malaysia.svg.png'); 
                 img.src = url;
             });
         }
 
-        // ====== PEMBAIKAN PDF (Guna Container Off-Screen & Styling A4 Tepat) ======
         window.downloadReport = async function(id) {
             const rep = reportsData.find(r => r.id === id);
             if(!rep) return;
@@ -1143,10 +1086,8 @@
             }
 
             showLoading("Menjana fail PDF (Memuatkan Imej)...");
-            
             fillPrintArea(rep);
 
-            // Pastikan logo utama dipramuat (preloaded) sebelum html2pdf dijalankan
             const logoEl = document.getElementById('p-logo');
             try {
                 const preloadedLogoSrc = await preloadImage(logoEl.src);
@@ -1156,34 +1097,28 @@
             }
 
             const printArea = document.getElementById('print-area');
-            
-            // Sediakan wrapper maya yang diletakkan TETAP (fixed) di bucu skrin
-            // Ini menghalang masalah teks terpotong di sebelah kiri akibat tatalan (scrolling)
             const pdfWrapper = document.createElement('div');
             pdfWrapper.style.position = 'fixed';
             pdfWrapper.style.top = '0';
             pdfWrapper.style.left = '0';
-            pdfWrapper.style.zIndex = '-9999'; // Sembunyikan di belakang
+            pdfWrapper.style.zIndex = '-9999'; 
             document.body.appendChild(pdfWrapper);
             
-            // Alihkan elemen ke dalam wrapper dan paksakan saiz & padanan A4 TETAP 1 PAGE
             printArea.classList.remove('hidden');
             printArea.style.display = 'flex';
             printArea.style.flexDirection = 'column';
             printArea.style.width = '210mm';
-            printArea.style.height = '296mm'; // Kunci ketinggian sedikit di bawah 297mm elak blank page
-            printArea.style.padding = '12mm'; // Margin dalam
+            printArea.style.height = '296mm';
+            printArea.style.padding = '12mm';
             printArea.style.boxSizing = 'border-box';
-            printArea.style.overflow = 'hidden'; // Pastikan tiada limpahan menyebabkan muka surat 2
+            printArea.style.overflow = 'hidden'; 
             pdfWrapper.style.backgroundColor = 'white';
             
             pdfWrapper.appendChild(printArea);
 
-            // Tatal browser ke atas (scroll to top) sementara supaya html2canvas tidak keliru
             const currentScrollY = window.scrollY;
             window.scrollTo(0, 0);
 
-            // Beri kelonggaran browser rendering dan muatan imej (dinaikkan ke 1.5 saat)
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             const filename = `Laporan_Kerosakan_${rep.serialNo || 'A01'}_${rep.staff.replace(/\s+/g, '_')}.pdf`;
@@ -1195,7 +1130,7 @@
                 html2canvas:  { 
                     scale: 2, 
                     useCORS: true, 
-                    allowTaint: true, // Membenarkan imej canvas kotor jika CORS gagal sedikit
+                    allowTaint: true, 
                     logging: false,
                     imageTimeout: 15000,
                     scrollX: 0, 
@@ -1213,12 +1148,10 @@
                 console.error("PDF error:", e);
                 showToast("Ralat memuat turun PDF. Sila cuba lagi.", "red");
             } finally {
-                // Kembalikan elemen print-area ke asalnya dan buang wrapper maya
                 document.body.appendChild(printArea);
                 pdfWrapper.remove();
                 printArea.classList.add('hidden');
                 
-                // Reset semua inline styles
                 printArea.style.display = 'none';
                 printArea.style.flexDirection = '';
                 printArea.style.width = '';
@@ -1227,9 +1160,7 @@
                 printArea.style.boxSizing = '';
                 printArea.style.overflow = '';
                 
-                // Kembalikan tatalan (scroll) ke posisi asal pengguna
                 window.scrollTo(0, currentScrollY);
-                
                 hideLoading();
             }
         }
@@ -1426,7 +1357,6 @@
             }
         }
 
-        // Navigation
         window.switchTab = function(tab) {
             if(tab === 'form') {
                 document.getElementById('view-form').classList.remove('hidden');
@@ -1447,7 +1377,6 @@
             }
         }
 
-        // Utils
         function showToast(msg, color) {
             const t = document.getElementById('toast');
             t.textContent = msg;
