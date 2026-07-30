@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAPORAN KEROSAKAN - SK PENDIDIKAN KHAS MIRI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Editor Canvas Styles */
+        .canvas-container { margin: 0 auto; border: 1px solid #d1d5db; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; touch-action: none !important; }
+        canvas { touch-action: none !important; }
+        .tool-btn { padding: 0.5rem; border-radius: 0.375rem; background: #f3f4f6; transition: all 0.2s; border: 1px solid transparent; }
+        .tool-btn:hover { background: #e5e7eb; }
+        .tool-btn.active { background: #dbeafe; border-color: #3b82f6; color: #1d4ed8; }
+        
+        /* Custom scrollbar for table */
+        .table-container::-webkit-scrollbar { height: 8px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .table-container::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; background: white; margin: 0; padding: 15mm; box-sizing: border-box; display: block !important; }
+            @page { size: A4; margin: 0; }
+            .no-print { display: none !important; }
+            .print-break { page-break-inside: avoid; }
+        }
+
+        /* Loading Spinner */
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        #toast { transition: opacity 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <!-- Navigation -->
+    <nav class="bg-blue-800 text-white shadow-lg sticky top-0 z-40 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <img src="logo.png" alt="Logo SKPK Miri" class="h-10 w-auto mr-3 object-contain bg-white rounded-full p-1" onerror="this.src='https://placehold.co/100x100/ffffff/1e40af?text=LOGO'">
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight uppercase">Laporan Kerosakan</h1>
+                        <p class="text-xs text-blue-200 uppercase">SEKOLAH KEBANGSAAN PENDIDIKAN KHAS MIRI</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="switchTab('form')" id="tab-form" class="px-3 py-2 rounded-md text-sm font-medium bg-blue-900 transition">Isi Laporan</button>
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition">Rekod Laporan</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print">
+        
+        <!-- ==================== FORM VIEW ==================== -->
+        <div id="view-form" class="space-y-6">
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-xl font-bold border-b pb-2 mb-4 uppercase">Borang Laporan Kerosakan</h2>
+                
+                <form id="report-form" class="space-y-6">
+                    <!-- Basic Info Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nama Staff</label>
+                            <select id="staffName" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border uppercase text-sm">
+                                <option value="">-- PILIH NAMA --</option>
+                                <!-- Populated via JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tarikh Laporan</label>
+                            <input type="date" id="reportDate" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
+                        </div>
+                    </div>
+
+                    <!-- Room & Condition Row -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Kategori Tempat/Bilik</label>
+                            <select id="roomCategory" required onchange="handleRoomCategoryChange()" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border uppercase text-sm">
+                                <option value="">-- PILIH KATEGORI --</option>
+                                <option value="3PK - BILIK AUDIOLOGI">3PK - BILIK AUDIOLOGI</option>
+                                <option value="BILIK BIMBINGAN DAN KAUNSELING">BILIK BIMBINGAN DAN KAUNSELING</option>
+                                <option value="BILIK DARJAH 750 KAKI PERSEGI / SAMA 3 BAY">BILIK DARJAH 750 KAKI PERSEGI / SAMA 3 BAY</option>
+                                <option value="BILIK DARJAH < DARIPADA 750 KPS / KURANG 3 BAY">BILIK DARJAH &lt; DARIPADA 750 KPS / KURANG 3 BAY</option>
+                                <option value="BILIK DARJAH PRASEKOLAH">BILIK DARJAH PRASEKOLAH</option>
+                                <option value="BILIK GURU BESAR">BILIK GURU BESAR</option>
+                                <option value="BILIK J-QAF">BILIK J-QAF</option>
+                                <option value="BILIK KHAS">BILIK KHAS</option>
+                                <option value="BILIK KOMPUTER">BILIK KOMPUTER</option>
+                                <option value="BILIK MESYUARAT UTAMA">BILIK MESYUARAT UTAMA</option>
+                                <option value="BILIK OPERASI SKIM PINJAMAN BUKU TEKS SEKOLAH (BOSS)">BILIK OPERASI SKIM PINJAMAN BUKU TEKS SEKOLAH (BOSS)</option>
+                                <option value="BILIK PANTRI">BILIK PANTRI</option>
+                                <option value="BILIK PENGURUSAN SUKAN">BILIK PENGURUSAN SUKAN</option>
+                                <option value="BILIK PENOLONG KANAN (PENTADBIRAN)">BILIK PENOLONG KANAN (PENTADBIRAN)</option>
+                                <option value="BILIK RBT (SEKOLAH RENDAH)">BILIK RBT (SEKOLAH RENDAH)</option>
+                                <option value="BILIK SAINS (SEKOLAH RENDAH)">BILIK SAINS (SEKOLAH RENDAH)</option>
+                                <option value="BILIK SERBAGUNA">BILIK SERBAGUNA</option>
+                                <option value="BILIK SOLAT (SEKOLAH)">BILIK SOLAT (SEKOLAH)</option>
+                                <option value="BUMBUNG">BUMBUNG</option>
+                                <option value="DEWAN TERBUKA (BERBUMBUNG)">DEWAN TERBUKA (BERBUMBUNG)</option>
+                                <option value="KORIDOR/LALUAN PEJALAN KAKI">KORIDOR/LALUAN PEJALAN KAKI</option>
+                                <option value="PEJABAT AM">PEJABAT AM</option>
+                                <option value="PEJABAT GURU">PEJABAT GURU</option>
+                                <option value="PONDOK PENGAWAL (SEKOLAH)">PONDOK PENGAWAL (SEKOLAH)</option>
+                                <option value="PUSAT SUMBER/PERPUSTAKAAN">PUSAT SUMBER/PERPUSTAKAAN</option>
+                                <option value="STOR AM">STOR AM</option>
+                                <option value="TANDAS GURU LELAKI">TANDAS GURU LELAKI</option>
+                                <option value="TANDAS GURU PEREMPUAN">TANDAS GURU PEREMPUAN</option>
+                                <option value="TANDAS MURID LELAKI">TANDAS MURID LELAKI</option>
+                                <option value="TANDAS MURID PEREMPUAN">TANDAS MURID PEREMPUAN</option>
+                                <option value="TANDAS OKU">TANDAS OKU</option>
+                                <option value="TANGGA">TANGGA</option>
+                                <option value="TANGKI">TANGKI</option>
+                            </select>
+                        </div>
+                        
+                        <div id="classroomContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Bilik Darjah</label>
+                            <select id="classroomType" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border uppercase text-sm">
+                                <option value="">-- PILIH KELAS --</option>
+                                <option value="PRASEKOLAH">PRASEKOLAH</option>
+                                <option value="1BD">1BD</option><option value="3BD">3BD</option>
+                                <option value="4BD">4BD</option><option value="5BD">5BD</option>
+                                <option value="6BD">6BD</option><option value="4BL">4BL</option>
+                                <option value="1BP DELIMA">1BP DELIMA</option><option value="1BP ZAMRUD">1BP ZAMRUD</option>
+                                <option value="2BP DELIMA">2BP DELIMA</option><option value="2BP ZAMRUD">2BP ZAMRUD</option>
+                                <option value="3BP">3BP</option><option value="4BP">4BP</option>
+                                <option value="5BP">5BP</option><option value="6BP">6BP</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Keadaan Fizikal (Kerosakan)</label>
+                            <select id="physicalCondition" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border uppercase text-sm">
+                                <option value="">-- PILIH KEADAAN --</option>
+                                <option value="DINDING">DINDING</option>
+                                <option value="PENDAWAIAN">PENDAWAIAN</option>
+                                <option value="LANTAI">LANTAI</option>
+                                <option value="SILING">SILING</option>
+                                <option value="TINGKAP">TINGKAP</option>
+                                <option value="PINTU">PINTU</option>
+                                <option value="PAPAN HITAM/PUTIH">PAPAN HITAM/PUTIH</option>
+                                <option value="PERPAIPAN">PERPAIPAN</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Images Section -->
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Eviden Kerosakan (Sila muat naik 2 gambar & buat penandaan)</label>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            
+                            <!-- Image 1 Editor -->
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <h3 class="font-semibold mb-2 text-sm text-gray-600">Gambar Eviden 1</h3>
+                                <input type="file" id="imgUpload1" accept="image/*" class="mb-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                
+                                <div id="toolbar1" class="hidden mb-2 flex flex-wrap gap-2 items-center bg-white p-2 rounded border shadow-sm">
+                                    <button type="button" class="tool-btn" onclick="setTool(1, 'pen')" title="Pen"><i class="fas fa-pen"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(1, 'rect')" title="Petak"><i class="far fa-square"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(1, 'circle')" title="Bulatan"><i class="far fa-circle"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(1, 'arrow')" title="Anak Panah"><i class="fas fa-arrow-right"></i></button>
+                                    <div class="h-6 border-l mx-1"></div>
+                                    <button type="button" class="tool-btn text-red-500" onclick="setTool(1, 'eraser')" title="Pemadam"><i class="fas fa-eraser"></i></button>
+                                    <input type="range" id="eraserSize1" min="5" max="50" value="20" class="w-20 hidden" onchange="updateEraserSize(1, this.value)">
+                                    <div class="h-6 border-l mx-1"></div>
+                                    <button type="button" class="tool-btn" onclick="undoCanvas(1)" title="Undo"><i class="fas fa-undo"></i></button>
+                                    <button type="button" class="tool-btn text-red-600 ml-auto" onclick="clearCanvas(1)" title="Padam Semua"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="w-full overflow-hidden bg-gray-200 rounded flex justify-center">
+                                    <canvas id="canvas1"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Image 2 Editor -->
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <h3 class="font-semibold mb-2 text-sm text-gray-600">Gambar Eviden 2</h3>
+                                <input type="file" id="imgUpload2" accept="image/*" class="mb-3 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                
+                                <div id="toolbar2" class="hidden mb-2 flex flex-wrap gap-2 items-center bg-white p-2 rounded border shadow-sm">
+                                    <button type="button" class="tool-btn" onclick="setTool(2, 'pen')" title="Pen"><i class="fas fa-pen"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(2, 'rect')" title="Petak"><i class="far fa-square"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(2, 'circle')" title="Bulatan"><i class="far fa-circle"></i></button>
+                                    <button type="button" class="tool-btn" onclick="setTool(2, 'arrow')" title="Anak Panah"><i class="fas fa-arrow-right"></i></button>
+                                    <div class="h-6 border-l mx-1"></div>
+                                    <button type="button" class="tool-btn text-red-500" onclick="setTool(2, 'eraser')" title="Pemadam"><i class="fas fa-eraser"></i></button>
+                                    <input type="range" id="eraserSize2" min="5" max="50" value="20" class="w-20 hidden" onchange="updateEraserSize(2, this.value)">
+                                    <div class="h-6 border-l mx-1"></div>
+                                    <button type="button" class="tool-btn" onclick="undoCanvas(2)" title="Undo"><i class="fas fa-undo"></i></button>
+                                    <button type="button" class="tool-btn text-red-600 ml-auto" onclick="clearCanvas(2)" title="Padam Semua"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="w-full overflow-hidden bg-gray-200 rounded flex justify-center">
+                                    <canvas id="canvas2"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description & AI -->
+                    <div class="border-t pt-4">
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Penerangan / Catatan Kerosakan</label>
+                            <button type="button" onclick="generateAI()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700 transition flex items-center">
+                                <i class="fas fa-magic mr-2"></i> Jana GEMINI AI
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Nota: Anda boleh taip kata kunci ringkas (contoh: "dinding retak teruk, air masuk") dan tekan butang Jana GEMINI AI untuk mendapatkan ayat laporan rasmi.</p>
+                        <textarea id="description" rows="4" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" placeholder="Sila masukkan keterangan kerosakan..."></textarea>
+                    </div>
+
+                    <!-- Staff Signature -->
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tandatangan Pelapor (Staff)</label>
+                        <div class="border border-dashed border-gray-400 rounded-md bg-white p-2 w-full sm:w-96 inline-block">
+                            <canvas id="signatureCanvas" width="360" height="150" class="border bg-gray-50 cursor-crosshair rounded touch-none block w-full h-[150px]"></canvas>
+                            <div class="mt-2 text-right">
+                                <button type="button" onclick="clearSignature()" class="text-sm text-red-600 hover:text-red-800">Padam Tandatangan</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="pt-4 border-t flex justify-end">
+                        <button type="submit" id="submitBtn" class="bg-green-600 text-white px-6 py-2 rounded-md font-bold hover:bg-green-700 transition shadow-lg flex items-center">
+                            <i class="fas fa-paper-plane mr-2"></i> Hantar Laporan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== DASHBOARD VIEW ==================== -->
+        <div id="view-dashboard" class="hidden space-y-6">
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                    <h2 class="text-xl font-bold uppercase">Rekod Laporan Kerosakan</h2>
+                </div>
+                
+                <div class="table-container overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">No. Siri</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Tarikh</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Pelapor</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Tempat</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Kerosakan</th>
+                                <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-3 text-right font-medium text-gray-500 uppercase tracking-wider">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows loaded via JS -->
+                            <tr><td colspan="7" class="text-center py-4 text-gray-500">Memuatkan rekod...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pengesahan Guru Besar -->
+    <div id="verifyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4 uppercase text-center">Pengesahan Guru Besar</h3>
+            <p class="text-sm text-gray-600 mb-4 text-center">Sila tandatangan di bawah untuk mengesahkan laporan ini.</p>
+            <div class="border border-dashed border-gray-400 rounded-md bg-white p-2 mb-4 flex justify-center flex-col items-center">
+                <canvas id="hmSignatureCanvas" width="300" height="150" class="border bg-gray-50 cursor-crosshair rounded touch-none block w-full h-[150px]"></canvas>
+                <div class="mt-2 w-full text-right">
+                    <button type="button" onclick="clearHMSignature()" class="text-sm text-red-600 hover:text-red-800">Padam</button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 text-center">Nama Guru Besar</label>
+                <p class="font-bold text-center uppercase">ENCIK AZIZ BIN TAHIR</p>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="closeVerifyModal()" class="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100">Batal</button>
+                <button onclick="confirmVerification()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold">Sahkan Laporan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print View (A4 Format) -->
+    <div id="print-area" class="hidden font-serif text-black">
+        <div class="text-center mb-6 border-b-2 border-black pb-4">
+            <img src="logo.png" alt="Logo SKPK Miri" class="h-24 mx-auto mb-3 object-contain" onerror="this.style.display='none'">
+            <h1 class="text-2xl font-bold uppercase">Laporan Kerosakan Fizikal</h1>
+            <h2 class="text-xl font-bold uppercase mt-1">Sekolah Kebangsaan Pendidikan Khas Miri</h2>
+        </div>
+        
+        <table class="w-full mb-6 text-sm">
+            <tr>
+                <td class="font-bold py-1 w-1/4">No. Siri Laporan</td><td class="w-4">:</td><td id="p-serial" class="py-1 font-bold text-blue-900"></td>
+            </tr>
+            <tr>
+                <td class="font-bold py-1">Tarikh Laporan</td><td>:</td><td id="p-date" class="py-1"></td>
+            </tr>
+            <tr>
+                <td class="font-bold py-1">Nama Pelapor</td><td>:</td><td id="p-staff" class="py-1 uppercase"></td>
+            </tr>
+            <tr>
+                <td class="font-bold py-1">Tempat/Bilik</td><td>:</td><td id="p-room" class="py-1 uppercase"></td>
+            </tr>
+            <tr>
+                <td class="font-bold py-1">Keadaan Fizikal</td><td>:</td><td id="p-condition" class="py-1 uppercase"></td>
+            </tr>
+        </table>
+
+        <div class="mb-6">
+            <h3 class="font-bold mb-2 uppercase text-sm border-b border-gray-400 inline-block">Penerangan / Catatan:</h3>
+            <p id="p-desc" class="text-sm leading-relaxed text-justify mt-2 whitespace-pre-wrap min-h-[100px]"></p>
+        </div>
+
+        <div class="mb-6 print-break">
+            <h3 class="font-bold mb-3 uppercase text-sm border-b border-gray-400 inline-block">Eviden Gambar:</h3>
+            <div class="grid grid-cols-2 gap-4 mt-2">
+                <div class="border p-1 bg-gray-50 h-[250px] flex items-center justify-center overflow-hidden">
+                    <img id="p-img1" src="" class="max-w-full max-h-full object-contain" alt="Tiada Gambar 1">
+                </div>
+                <div class="border p-1 bg-gray-50 h-[250px] flex items-center justify-center overflow-hidden">
+                    <img id="p-img2" src="" class="max-w-full max-h-full object-contain" alt="Tiada Gambar 2">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between mt-12 print-break">
+            <div class="w-1/3 text-center">
+                <p class="mb-16 text-sm">Disediakan Oleh:</p>
+                <img id="p-staff-sign" src="" class="h-16 mx-auto mb-2" alt="Tandatangan Pelapor">
+                <p class="font-bold border-t border-black pt-1 text-sm uppercase" id="p-staff-name-bottom"></p>
+                <p class="text-xs">Pelapor</p>
+            </div>
+            
+            <div class="w-1/3 text-center" id="p-verify-section">
+                <p class="mb-16 text-sm">Disahkan Oleh:</p>
+                <img id="p-hm-sign" src="" class="h-16 mx-auto mb-2 hidden" alt="Tandatangan Guru Besar">
+                <p id="p-hm-unverified" class="h-16 flex items-center justify-center text-red-500 font-bold border-2 border-red-500 rounded my-2 opacity-50 transform -rotate-12">BELUM DISAHKAN</p>
+                <p class="font-bold border-t border-black pt-1 text-sm uppercase">ENCIK AZIZ BIN TAHIR</p>
+                <p class="text-xs">Guru Besar</p>
+                <p class="text-xs mt-1">SK Pendidikan Khas Miri</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-800 text-white px-4 py-2 rounded shadow-lg opacity-0 pointer-events-none z-50">
+        Message
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 hidden no-print">
+        <div class="flex flex-col items-center">
+            <div class="spinner mb-4"></div>
+            <p id="loading-text" class="font-medium text-gray-700">Sedang diproses...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const staffList = [
+            "MOHAMAD ABIDIN BIN SIPEK", "LING MEE CHOO", "SALIHIN BIN AHMAD", "WONG PICK KING", "TING HUA EE",
+            "JACQUELINE TIONG HOE DING", "NUR HIDAYU BINTI YUSOP", "MOHD RAFEEQ BIN SULAIMAN", "FAZRI BIN BAKERI",
+            "KHAIRI BIN SAHARI", "SABARIAH BINTI SOLHI", "HILWA HAYATI BINTI MOHAMAD AJALAN", "JIMMY ANAK PETER",
+            "BRYAN ANAK CONSTANT", "TING YU YONG", "JERIAH ANAK SIMON", "ZEPRINA ANAK BENIK", "SYAEEZA LIANA BINTI RAMLI",
+            "NURUL HUDA BTE MOHD IHWAN", "HAIROL BIN ISMAIL", "MARY JANE AMOI UMPANG ANAK DANIEL MAWAT", "EIFILISIA AMBER ANAK MERVIN",
+            "MUHAMMAD ZULHUSAINI BIN ABDUL WAHAB", "AIDA MASTURINA BINTI HAMKA", "TENG RU YUN", "DLIYANA ANAK JOHN",
+            "VANITHA A/P SUBRAMANIAM", "CHRISTIAN SIMON", "NUR FADZLIAH AMAL BINTI OSMAN", "HAZUANI BINTI HIPNI",
+            "HELLEN RANJA ANAK BELI", "KAMARIA BINTI BUJANG", "NORAISYAH BINTI ASHARI", "NORMIRI BINTI ABDULLAH",
+            "AZENI BIN MAT", "MARIATI BINTI JULAIHI", "EVELYN SENA ANAK USSIK", "ALEXANDER LIPA ANAK RANTIE"
+        ].map(n => n.toUpperCase());
+
+        let fbApp, db, auth, currentUserId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'skpkmiri-laporan-kerosakan';
+        let unsubscribe = null;
+        let reportsData = [];
+        let verifyReportId = null;
+        let editingReportId = null;
+
+        // Signature Canvas State Variables (Native 2D Canvas)
+        let staffHasSigned = false;
+        let hmHasSigned = false;
+        let sigCanvasEl, sigCtx;
+        let hmSigCanvasEl, hmSigCtx;
+
+        // Init Firebase
+        async function initFirebase() {
+            try {
+                // Konfigurasi Firebase rasmi anda
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBc24LF874keq1IOGutY9cXkptVyXdi5hY",
+                    authDomain: "laporan-kerosakan-f14a1.firebaseapp.com",
+                    projectId: "laporan-kerosakan-f14a1",
+                    storageBucket: "laporan-kerosakan-f14a1.firebasestorage.app",
+                    messagingSenderId: "42285739851",
+                    appId: "1:42285739851:web:fda250782e45eacff542ce",
+                    measurementId: "G-XFDE1MJ7HN"
+                };
+                
+                if(firebaseConfig && firebaseConfig.apiKey) {
+                    fbApp = initializeApp(firebaseConfig);
+                    db = getFirestore(fbApp);
+                    auth = getAuth(fbApp);
+                    await signInAnonymously(auth);
+                    currentUserId = auth.currentUser ? auth.currentUser.uid : null;
+                    listenToReports();
+                } else {
+                    console.log("Running in LocalStorage Mode (No Firebase Config)");
+                    loadMockData();
+                }
+            } catch (e) {
+                console.warn("Firebase init failed, switching to LocalStorage mode:", e);
+                db = null;
+                loadMockData();
+            }
+        }
+
+        function listenToReports() {
+            if(!db) return;
+            try {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'reports'));
+                unsubscribe = onSnapshot(q, (snapshot) => {
+                    reportsData = [];
+                    snapshot.forEach((doc) => {
+                        reportsData.push({ id: doc.id, ...doc.data() });
+                    });
+                    reportsData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    renderTable();
+                }, (error) => {
+                    console.warn("Firestore snapshot error/permission issue. Falling back to LocalStorage mode.", error);
+                    db = null;
+                    loadMockData();
+                });
+            } catch (e) {
+                console.warn("Failed to set up Firestore listener, falling back to LocalStorage:", e);
+                db = null;
+                loadMockData();
+            }
+        }
+
+        // LocalStorage data fallback
+        function loadMockData() {
+            const mock = localStorage.getItem('mockReports');
+            reportsData = mock ? JSON.parse(mock) : [];
+            reportsData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            renderTable();
+        }
+        function saveMockData() {
+            localStorage.setItem('mockReports', JSON.stringify(reportsData));
+        }
+
+        function generateSerialNo() {
+            const count = reportsData.length + 1;
+            const letterIndex = Math.floor((count - 1) / 99);
+            const numIndex = ((count - 1) % 99) + 1;
+            const letter = String.fromCharCode(65 + (letterIndex % 26)); // A, B, C...
+            const numStr = String(numIndex).padStart(2, '0');
+            return `${letter}${numStr}`;
+        }
+
+        // Setup Form Data
+        function setupForm() {
+            const staffSelect = document.getElementById('staffName');
+            staffList.forEach(name => {
+                let opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                staffSelect.appendChild(opt);
+            });
+            
+            // Set today's date
+            document.getElementById('reportDate').valueAsDate = new Date();
+        }
+
+        window.handleRoomCategoryChange = function() {
+            const cat = document.getElementById('roomCategory').value;
+            const classContainer = document.getElementById('classroomContainer');
+            const classSelect = document.getElementById('classroomType');
+            
+            if (cat.includes('BILIK DARJAH')) {
+                classContainer.classList.remove('hidden');
+                classSelect.required = true;
+            } else {
+                classContainer.classList.add('hidden');
+                classSelect.required = false;
+                classSelect.value = '';
+            }
+
+            // Recalculate canvas positions when layout shifts
+            setTimeout(() => {
+                if(canvas1) canvas1.calcOffset();
+                if(canvas2) canvas2.calcOffset();
+            }, 100);
+        }
+
+        // Native Signature Drawing Engine
+        function setupSignatureCanvas(canvasEl, ctx, setSignedFlag) {
+            if(!canvasEl || !ctx) return;
+            let isDrawing = false;
+
+            function getPos(e) {
+                const rect = canvasEl.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: (clientX - rect.left) * (canvasEl.width / rect.width),
+                    y: (clientY - rect.top) * (canvasEl.height / rect.height)
+                };
+            }
+
+            function startDraw(e) {
+                if (e.type === 'touchstart') e.preventDefault();
+                isDrawing = true;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = '#000000';
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                if (e.type === 'touchmove') e.preventDefault();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                setSignedFlag(true);
+            }
+
+            function stopDraw() {
+                if (isDrawing) {
+                    ctx.closePath();
+                    isDrawing = false;
+                }
+            }
+
+            canvasEl.addEventListener('mousedown', startDraw);
+            canvasEl.addEventListener('mousemove', draw);
+            canvasEl.addEventListener('mouseup', stopDraw);
+            canvasEl.addEventListener('mouseleave', stopDraw);
+
+            canvasEl.addEventListener('touchstart', startDraw, { passive: false });
+            canvasEl.addEventListener('touchmove', draw, { passive: false });
+            canvasEl.addEventListener('touchend', stopDraw);
+        }
+
+        // Fabric Canvas Setup
+        let canvas1, canvas2;
+        const history = { 1: [], 2: [] };
+        
+        function initEditors() {
+            // Setup image drawing canvases
+            canvas1 = new fabric.Canvas('canvas1', { isDrawingMode: true, width: 400, height: 300 });
+            canvas2 = new fabric.Canvas('canvas2', { isDrawingMode: true, width: 400, height: 300 });
+            
+            canvas1.freeDrawingBrush.color = '#ef4444';
+            canvas1.freeDrawingBrush.width = 3;
+            canvas2.freeDrawingBrush.color = '#ef4444';
+            canvas2.freeDrawingBrush.width = 3;
+
+            // Setup Signatures using Native Canvas API (Prevents touch & path disappearance issues)
+            sigCanvasEl = document.getElementById('signatureCanvas');
+            sigCtx = sigCanvasEl.getContext('2d');
+            setupSignatureCanvas(sigCanvasEl, sigCtx, (val) => staffHasSigned = val);
+
+            hmSigCanvasEl = document.getElementById('hmSignatureCanvas');
+            hmSigCtx = hmSigCanvasEl.getContext('2d');
+            setupSignatureCanvas(hmSigCanvasEl, hmSigCtx, (val) => hmHasSigned = val);
+
+            setupImageUpload('imgUpload1', canvas1, 1);
+            setupImageUpload('imgUpload2', canvas2, 2);
+
+            setupCanvasHistory(canvas1, 1);
+            setupCanvasHistory(canvas2, 2);
+            
+            setupArrowTool(canvas1);
+            setupArrowTool(canvas2);
+
+            window.addEventListener('resize', () => {
+                if(canvas1) canvas1.calcOffset();
+                if(canvas2) canvas2.calcOffset();
+            });
+        }
+
+        function setupImageUpload(inputId, canvas, id) {
+            document.getElementById(inputId).addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(f) {
+                    const data = f.target.result;
+                    fabric.Image.fromURL(data, function(img) {
+                        const scale = canvas.width / img.width;
+                        const newHeight = img.height * scale;
+                        
+                        canvas.setHeight(newHeight);
+                        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                            scaleX: scale,
+                            scaleY: scale
+                        });
+                        
+                        document.getElementById(`toolbar${id}`).classList.remove('hidden');
+                        document.getElementById(`toolbar${id}`).classList.add('flex');
+                        saveHistory(id);
+                        setTool(id, 'pen');
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Custom Arrow Tool Implementation
+        let isDrawing = false;
+        let line, arrowHead;
+        
+        function setupArrowTool(canvas) {
+            canvas.on('mouse:down', function(o){
+                if(canvas.currentTool !== 'arrow') return;
+                isDrawing = true;
+                const pointer = canvas.getPointer(o.e);
+                const points = [pointer.x, pointer.y, pointer.x, pointer.y];
+                
+                line = new fabric.Line(points, {
+                    strokeWidth: 3, fill: 'red', stroke: 'red', originX: 'center', originY: 'center', selectable: false, evented: false
+                });
+                
+                arrowHead = new fabric.Triangle({
+                    width: 15, height: 15, fill: 'red', left: pointer.x, top: pointer.y,
+                    originX: 'center', originY: 'center', selectable: false, evented: false, angle: 90
+                });
+                
+                canvas.add(line, arrowHead);
+            });
+
+            canvas.on('mouse:move', function(o){
+                if (!isDrawing || canvas.currentTool !== 'arrow') return;
+                const pointer = canvas.getPointer(o.e);
+                line.set({ x2: pointer.x, y2: pointer.y });
+                
+                arrowHead.set({ left: pointer.x, top: pointer.y });
+                
+                const dx = pointer.x - line.x1;
+                const dy = pointer.y - line.y1;
+                let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                arrowHead.set({ angle: angle + 90 });
+                
+                canvas.renderAll();
+            });
+
+            canvas.on('mouse:up', function(o){
+                if(canvas.currentTool !== 'arrow' || !isDrawing) return;
+                isDrawing = false;
+                line.setCoords();
+                arrowHead.setCoords();
+                
+                let group = new fabric.Group([line, arrowHead], { selectable: true });
+                canvas.remove(line, arrowHead);
+                canvas.add(group);
+                
+                saveHistory(canvas === canvas1 ? 1 : 2);
+            });
+            
+            // Shape handling
+            let rect, circle, shapeOriginX, shapeOriginY;
+            
+            canvas.on('mouse:down', function(o){
+                const tool = canvas.currentTool;
+                if(tool !== 'rect' && tool !== 'circle') return;
+                isDrawing = true;
+                const pointer = canvas.getPointer(o.e);
+                shapeOriginX = pointer.x;
+                shapeOriginY = pointer.y;
+
+                if (tool === 'rect') {
+                    rect = new fabric.Rect({
+                        left: shapeOriginX, top: shapeOriginY, width: 0, height: 0,
+                        fill: 'transparent', stroke: 'red', strokeWidth: 3, selectable: false
+                    });
+                    canvas.add(rect);
+                } else if (tool === 'circle') {
+                    circle = new fabric.Circle({
+                        left: shapeOriginX, top: shapeOriginY, radius: 0,
+                        fill: 'transparent', stroke: 'red', strokeWidth: 3, selectable: false
+                    });
+                    canvas.add(circle);
+                }
+            });
+            
+            canvas.on('mouse:move', function(o){
+                const tool = canvas.currentTool;
+                if (!isDrawing || (tool !== 'rect' && tool !== 'circle')) return;
+                const pointer = canvas.getPointer(o.e);
+
+                if (tool === 'rect') {
+                    rect.set({ width: Math.abs(shapeOriginX - pointer.x), height: Math.abs(shapeOriginY - pointer.y) });
+                    rect.set({ left: Math.min(pointer.x, shapeOriginX), top: Math.min(pointer.y, shapeOriginY) });
+                } else if (tool === 'circle') {
+                    const radius = Math.max(Math.abs(shapeOriginX - pointer.x), Math.abs(shapeOriginY - pointer.y)) / 2;
+                    circle.set({ radius: radius });
+                    circle.set({ left: Math.min(pointer.x, shapeOriginX), top: Math.min(pointer.y, shapeOriginY) });
+                }
+                canvas.renderAll();
+            });
+            
+            canvas.on('mouse:up', function(o){
+                const tool = canvas.currentTool;
+                if(!isDrawing || (tool !== 'rect' && tool !== 'circle')) return;
+                isDrawing = false;
+                if(rect) rect.setCoords();
+                if(circle) circle.setCoords();
+                if(rect) rect.set({selectable:true});
+                if(circle) circle.set({selectable:true});
+                saveHistory(canvas === canvas1 ? 1 : 2);
+            });
+            
+            canvas.on('path:created', function() {
+                saveHistory(canvas === canvas1 ? 1 : 2);
+            });
+            canvas.on('object:modified', function() {
+                saveHistory(canvas === canvas1 ? 1 : 2);
+            });
+        }
+
+        window.setTool = function(id, tool) {
+            const canvas = id === 1 ? canvas1 : canvas2;
+            const tb = document.getElementById(`toolbar${id}`);
+            
+            tb.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            tb.querySelector(`[onclick="setTool(${id}, '${tool}')"]`).classList.add('active');
+            
+            canvas.currentTool = tool;
+            
+            const eraserInput = document.getElementById(`eraserSize${id}`);
+            if (tool === 'eraser') {
+                eraserInput.classList.remove('hidden');
+                eraserInput.classList.add('inline-block');
+            } else {
+                eraserInput.classList.add('hidden');
+                eraserInput.classList.remove('inline-block');
+            }
+
+            if (tool === 'pen') {
+                canvas.isDrawingMode = true;
+                canvas.freeDrawingBrush.color = 'red';
+                canvas.freeDrawingBrush.width = 3;
+                canvas.defaultCursor = 'crosshair';
+            } else if (tool === 'eraser') {
+                canvas.isDrawingMode = true;
+                canvas.freeDrawingBrush.color = 'white'; 
+                canvas.freeDrawingBrush.width = parseInt(eraserInput.value);
+                canvas.defaultCursor = 'crosshair';
+            } else {
+                canvas.isDrawingMode = false;
+                canvas.defaultCursor = 'crosshair';
+                canvas.selection = true;
+            }
+        };
+
+        window.updateEraserSize = function(id, val) {
+            const canvas = id === 1 ? canvas1 : canvas2;
+            if(canvas.currentTool === 'eraser') {
+                canvas.freeDrawingBrush.width = parseInt(val);
+            }
+        }
+
+        window.clearCanvas = function(id) {
+            const canvas = id === 1 ? canvas1 : canvas2;
+            const bg = canvas.backgroundImage;
+            canvas.clear();
+            if(bg) canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
+            saveHistory(id);
+        };
+        
+        window.clearSignature = function() { 
+            if(sigCtx && sigCanvasEl) {
+                sigCtx.clearRect(0, 0, sigCanvasEl.width, sigCanvasEl.height);
+                staffHasSigned = false;
+            }
+        };
+
+        window.clearHMSignature = function() { 
+            if(hmSigCtx && hmSigCanvasEl) {
+                hmSigCtx.clearRect(0, 0, hmSigCanvasEl.width, hmSigCanvasEl.height);
+                hmHasSigned = false;
+            }
+        };
+
+        function setupCanvasHistory(canvas, id) {
+            canvas.on('object:added', function() { if(!canvas.isHistoryProcessing) saveHistory(id); });
+        }
+
+        function saveHistory(id) {
+            const canvas = id === 1 ? canvas1 : canvas2;
+            if(history[id].length > 15) history[id].shift();
+            history[id].push(JSON.stringify(canvas));
+        }
+
+        window.undoCanvas = function(id) {
+            const canvas = id === 1 ? canvas1 : canvas2;
+            if (history[id].length > 1) {
+                history[id].pop();
+                canvas.isHistoryProcessing = true;
+                canvas.loadFromJSON(history[id][history[id].length - 1], function() {
+                    canvas.renderAll();
+                    canvas.isHistoryProcessing = false;
+                });
+            }
+        }
+
+        window.generateAI = async function() {
+            const cat = document.getElementById('roomCategory').value;
+            let room = cat;
+            if(cat.includes('BILIK DARJAH') && document.getElementById('classroomType').value) {
+                room += " - " + document.getElementById('classroomType').value;
+            }
+            const condition = document.getElementById('physicalCondition').value;
+            const currentDesc = document.getElementById('description').value;
+
+            if(!cat || !condition) {
+                showToast("Sila pilih Kategori Bilik dan Keadaan Fizikal terlebih dahulu", "red");
+                return;
+            }
+
+            showLoading("Menjana ayat laporan dengan AI...");
+            
+            const prompt = `Bertindak sebagai kakitangan sekolah rasmi di Malaysia. Tuliskan satu perenggan formal (sekitar 3-4 ayat) untuk laporan kerosakan sekolah. 
+            Jenis bilik: ${room}.
+            Kerosakan fizikal: ${condition}.
+            Catatan/Kata Kunci Pelapor: ${currentDesc || 'tiada catatan'}.
+            Gunakan laras bahasa Melayu rasmi dan formal (surat rasmi kerajaan). Jangan mulakan dengan salam, terus kepada penerangan kerosakan.`;
+
+            try {
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                    })
+                });
+                
+                const data = await response.json();
+                if(data.candidates && data.candidates[0].content) {
+                    const text = data.candidates[0].content.parts[0].text;
+                    document.getElementById('description').value = text.trim();
+                    showToast("Teks berjaya dijana", "green");
+                } else {
+                    throw new Error("AI tiada respon");
+                }
+            } catch (error) {
+                console.error("AI Error:", error);
+                showToast("Gagal menjana teks AI", "red");
+            } finally {
+                hideLoading();
+            }
+        };
+
+        document.getElementById('report-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if(!staffHasSigned) {
+                showToast("Sila turunkan tandatangan pelapor", "red");
+                return;
+            }
+
+            let room = document.getElementById('roomCategory').value;
+            if(room.includes('BILIK DARJAH') && document.getElementById('classroomType').value) {
+                room += " " + document.getElementById('classroomType').value;
+            }
+
+            const getCompressedImg = (canvas) => {
+                if(!canvas.backgroundImage) return "";
+                const mult = 600 / canvas.width;
+                return canvas.toDataURL({ format: 'jpeg', quality: 0.7, multiplier: mult > 1 ? 1 : mult });
+            };
+
+            showLoading(editingReportId ? "Mengemaskini laporan..." : "Menyimpan laporan...");
+
+            const reportData = {
+                staff: document.getElementById('staffName').value,
+                date: document.getElementById('reportDate').value,
+                room: room,
+                condition: document.getElementById('physicalCondition').value,
+                description: document.getElementById('description').value,
+                image1: getCompressedImg(canvas1),
+                image2: getCompressedImg(canvas2),
+                signatureStaff: sigCanvasEl.toDataURL('image/png'),
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                if(editingReportId) {
+                    // Update existing report
+                    if(db) {
+                        try {
+                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reports', editingReportId), reportData);
+                        } catch(fsErr) {
+                            console.warn("Firestore update error, updating in LocalStorage:", fsErr);
+                            db = null;
+                            const idx = reportsData.findIndex(r => r.id === editingReportId);
+                            if(idx > -1) {
+                                reportsData[idx] = { ...reportsData[idx], ...reportData };
+                                saveMockData();
+                            }
+                        }
+                    } else {
+                        const idx = reportsData.findIndex(r => r.id === editingReportId);
+                        if(idx > -1) {
+                            reportsData[idx] = { ...reportsData[idx], ...reportData };
+                            saveMockData();
+                        }
+                    }
+                    showToast("Laporan berjaya dikemaskini!", "green");
+                } else {
+                    // Create new report
+                    const serialNo = generateSerialNo();
+                    const newReport = {
+                        ...reportData,
+                        serialNo: serialNo,
+                        status: 'BELUM DISAHKAN',
+                        verifiedBy: '',
+                        signatureHM: ''
+                    };
+                    if(db) {
+                        try {
+                            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), newReport);
+                        } catch(fsErr) {
+                            console.warn("Firestore write error, saving to LocalStorage instead:", fsErr);
+                            db = null;
+                            reportsData.push({ id: Date.now().toString(), ...newReport });
+                            saveMockData();
+                        }
+                    } else {
+                        reportsData.push({ id: Date.now().toString(), ...newReport });
+                        saveMockData();
+                    }
+                    showToast("Laporan berjaya dihantar!", "green");
+                }
+
+                resetFormState();
+                switchTab('dashboard');
+                renderTable();
+            } catch(e) {
+                console.error("Save error:", e);
+                showToast("Ralat menyimpan data.", "red");
+            } finally {
+                hideLoading();
+            }
+        });
+
+        window.renderTable = function() {
+            const tbody = document.getElementById('reportsTableBody');
+            tbody.innerHTML = '';
+            
+            if(reportsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Tiada laporan ditemui.</td></tr>';
+                return;
+            }
+
+            reportsData.forEach((rep, index) => {
+                const tr = document.createElement('tr');
+                const isVerified = rep.status === 'DISAHKAN';
+                const statusBadge = isVerified 
+                    ? `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">DISAHKAN</span>`
+                    : `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">BELUM DISAHKAN</span>`;
+                
+                const dateParts = rep.date.split('-');
+                const formattedDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : rep.date;
+                const serialNo = rep.serialNo || `A${String(reportsData.length - index).padStart(2, '0')}`;
+
+                // Download button condition: Enabled ONLY if DISAHKAN
+                const downloadBtnHtml = isVerified
+                    ? `<button onclick="downloadReport('${rep.id}')" class="text-indigo-600 hover:text-indigo-900" title="Muat Turun PDF"><i class="fas fa-file-download"></i></button>`
+                    : `<button class="text-gray-300 cursor-not-allowed" title="Hanya laporan disahkan boleh dimuat turun" disabled><i class="fas fa-file-download"></i></button>`;
+
+                tr.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap font-bold text-blue-700">${serialNo}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${formattedDate}</td>
+                    <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">${rep.staff}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${rep.room}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${rep.condition}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        ${downloadBtnHtml}
+                        <button onclick="editReport('${rep.id}')" class="text-amber-600 hover:text-amber-900" title="Kemaskini Laporan"><i class="fas fa-edit"></i></button>
+                        ${!isVerified ? `<button onclick="openVerifyModal('${rep.id}')" class="text-green-600 hover:text-green-900" title="Sahkan"><i class="fas fa-check-circle"></i></button>` : ''}
+                        <button onclick="deleteReport('${rep.id}')" class="text-red-600 hover:text-red-900" title="Hapus"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function fillPrintArea(rep) {
+            const serialNo = rep.serialNo || 'A01';
+            document.getElementById('p-serial').textContent = serialNo;
+            const dateParts = rep.date.split('-');
+            document.getElementById('p-date').textContent = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : rep.date;
+            document.getElementById('p-staff').textContent = rep.staff;
+            document.getElementById('p-room').textContent = rep.room;
+            document.getElementById('p-condition').textContent = rep.condition;
+            document.getElementById('p-desc').textContent = rep.description;
+            
+            document.getElementById('p-img1').src = rep.image1 || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            document.getElementById('p-img2').src = rep.image2 || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            
+            document.getElementById('p-staff-sign').src = rep.signatureStaff;
+            document.getElementById('p-staff-name-bottom').textContent = rep.staff;
+
+            const hmSignImg = document.getElementById('p-hm-sign');
+            const unverifiedTag = document.getElementById('p-hm-unverified');
+            
+            if(rep.status === 'DISAHKAN') {
+                hmSignImg.src = rep.signatureHM;
+                hmSignImg.classList.remove('hidden');
+                unverifiedTag.classList.add('hidden');
+            } else {
+                hmSignImg.src = '';
+                hmSignImg.classList.add('hidden');
+                unverifiedTag.classList.remove('hidden');
+            }
+        }
+
+        window.printReport = function(id) {
+            const rep = reportsData.find(r => r.id === id);
+            if(!rep) return;
+
+            fillPrintArea(rep);
+
+            const printArea = document.getElementById('print-area');
+            printArea.classList.remove('hidden');
+            
+            setTimeout(() => {
+                window.print();
+                printArea.classList.add('hidden');
+            }, 100);
+        }
+
+        window.downloadReport = async function(id) {
+            const rep = reportsData.find(r => r.id === id);
+            if(!rep) return;
+
+            if(rep.status !== 'DISAHKAN') {
+                showToast("Hanya laporan yang telah disahkan boleh dimuat turun!", "red");
+                return;
+            }
+
+            showLoading("Menjana fail PDF...");
+            fillPrintArea(rep);
+
+            const printArea = document.getElementById('print-area');
+            printArea.classList.remove('hidden');
+
+            const opt = {
+                margin:       8,
+                filename:     `Laporan_Kerosakan_${rep.serialNo || 'A01'}_${rep.staff.replace(/\s+/g, '_')}_${rep.date}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            try {
+                await html2pdf().set(opt).from(printArea).save();
+                showToast("Muat turun PDF berjaya!", "green");
+            } catch (e) {
+                console.error("PDF generation error:", e);
+                showToast("Ralat memuat turun PDF", "red");
+            } finally {
+                printArea.classList.add('hidden');
+                hideLoading();
+            }
+        }
+
+        window.editReport = function(id) {
+            const rep = reportsData.find(r => r.id === id);
+            if(!rep) return;
+
+            editingReportId = id;
+
+            // Fill form fields
+            document.getElementById('staffName').value = rep.staff;
+            document.getElementById('reportDate').value = rep.date;
+
+            // Parse room category & classroom type
+            let mainCategory = rep.room;
+            let subCategory = "";
+            const catSelect = document.getElementById('roomCategory');
+            for (let opt of catSelect.options) {
+                if (opt.value && rep.room.startsWith(opt.value)) {
+                    mainCategory = opt.value;
+                    subCategory = rep.room.replace(opt.value, "").trim();
+                    break;
+                }
+            }
+
+            document.getElementById('roomCategory').value = mainCategory;
+            handleRoomCategoryChange();
+            if(subCategory) {
+                document.getElementById('classroomType').value = subCategory;
+            }
+
+            document.getElementById('physicalCondition').value = rep.condition;
+            document.getElementById('description').value = rep.description;
+
+            // Clear & reload fabric canvases
+            clearCanvas(1);
+            clearCanvas(2);
+
+            if(rep.image1) {
+                fabric.Image.fromURL(rep.image1, function(img) {
+                    const scale = canvas1.width / img.width;
+                    canvas1.setHeight(img.height * scale);
+                    canvas1.setBackgroundImage(img, canvas1.renderAll.bind(canvas1), { scaleX: scale, scaleY: scale });
+                    document.getElementById('toolbar1').classList.remove('hidden');
+                    document.getElementById('toolbar1').classList.add('flex');
+                });
+            }
+
+            if(rep.image2) {
+                fabric.Image.fromURL(rep.image2, function(img) {
+                    const scale = canvas2.width / img.width;
+                    canvas2.setHeight(img.height * scale);
+                    canvas2.setBackgroundImage(img, canvas2.renderAll.bind(canvas2), { scaleX: scale, scaleY: scale });
+                    document.getElementById('toolbar2').classList.remove('hidden');
+                    document.getElementById('toolbar2').classList.add('flex');
+                });
+            }
+
+            // Clear & reload staff signature
+            clearSignature();
+            if(rep.signatureStaff) {
+                const img = new Image();
+                img.onload = function() {
+                    sigCtx.drawImage(img, 0, 0, sigCanvasEl.width, sigCanvasEl.height);
+                    staffHasSigned = true;
+                };
+                img.src = rep.signatureStaff;
+            }
+
+            // Change UI for Edit mode
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerHTML = `<i class="fas fa-save mr-2"></i> Kemaskini Laporan`;
+            submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            submitBtn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+
+            let cancelBtn = document.getElementById('cancelEditBtn');
+            if(!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.id = 'cancelEditBtn';
+                cancelBtn.className = 'bg-gray-500 text-white px-4 py-2 rounded-md font-bold hover:bg-gray-600 transition shadow-lg mr-2';
+                cancelBtn.innerHTML = '<i class="fas fa-times mr-2"></i> Batal Kemaskini';
+                cancelBtn.onclick = resetFormState;
+                submitBtn.parentNode.insertBefore(cancelBtn, submitBtn);
+            }
+
+            switchTab('form');
+            showToast("Mengemaskini laporan ID: " + id, "blue");
+        }
+
+        function resetFormState() {
+            editingReportId = null;
+            document.getElementById('report-form').reset();
+            clearCanvas(1);
+            clearCanvas(2);
+            clearSignature();
+            document.getElementById('reportDate').valueAsDate = new Date();
+            
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            if(cancelBtn) cancelBtn.remove();
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Hantar Laporan`;
+            submitBtn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+            submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
+
+        window.deleteReport = async function(id) {
+            const confirmBox = document.createElement('div');
+            confirmBox.className = "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+            confirmBox.innerHTML = `
+                <div class="bg-white p-6 rounded shadow-lg">
+                    <h3 class="font-bold text-lg mb-2">Hapus Laporan?</h3>
+                    <p class="mb-4 text-gray-600">Adakah anda pasti mahu menghapus laporan ini? Tindakan ini tidak boleh diundur.</p>
+                    <div class="flex justify-end space-x-2">
+                        <button class="px-4 py-2 border rounded" id="btnCancelDel">Batal</button>
+                        <button class="px-4 py-2 bg-red-600 text-white rounded" id="btnConfirmDel">Hapus</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmBox);
+
+            document.getElementById('btnCancelDel').onclick = () => confirmBox.remove();
+            document.getElementById('btnConfirmDel').onclick = async () => {
+                confirmBox.remove();
+                showLoading("Menghapus...");
+                try {
+                    if(db) {
+                        try {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reports', id));
+                        } catch(e) {
+                            console.warn("Firestore delete failed, removing locally:", e);
+                            db = null;
+                            reportsData = reportsData.filter(r => r.id !== id);
+                            saveMockData();
+                            renderTable();
+                        }
+                    } else {
+                        reportsData = reportsData.filter(r => r.id !== id);
+                        saveMockData();
+                        renderTable();
+                    }
+                    showToast("Laporan dihapuskan", "green");
+                } catch(e) {
+                    showToast("Ralat menghapus laporan", "red");
+                } finally {
+                    hideLoading();
+                }
+            };
+        }
+
+        window.openVerifyModal = function(id) {
+            verifyReportId = id;
+            clearHMSignature();
+            document.getElementById('verifyModal').classList.remove('hidden');
+        }
+        
+        window.closeVerifyModal = function() {
+            document.getElementById('verifyModal').classList.add('hidden');
+            verifyReportId = null;
+        }
+
+        window.confirmVerification = async function() {
+            if(!hmHasSigned) {
+                showToast("Tandatangan Guru Besar diperlukan", "red");
+                return;
+            }
+
+            showLoading("Mengesahkan...");
+            try {
+                const sigData = hmSigCanvasEl.toDataURL('image/png');
+                if(db) {
+                    try {
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reports', verifyReportId), {
+                            status: 'DISAHKAN',
+                            signatureHM: sigData,
+                            verifiedBy: 'ENCIK AZIZ BIN TAHIR'
+                        });
+                    } catch(e) {
+                        console.warn("Firestore update failed, updating locally:", e);
+                        db = null;
+                        const idx = reportsData.findIndex(r => r.id === verifyReportId);
+                        if(idx > -1) {
+                            reportsData[idx].status = 'DISAHKAN';
+                            reportsData[idx].signatureHM = sigData;
+                            reportsData[idx].verifiedBy = 'ENCIK AZIZ BIN TAHIR';
+                            saveMockData();
+                            renderTable();
+                        }
+                    }
+                } else {
+                    const idx = reportsData.findIndex(r => r.id === verifyReportId);
+                    if(idx > -1) {
+                        reportsData[idx].status = 'DISAHKAN';
+                        reportsData[idx].signatureHM = sigData;
+                        reportsData[idx].verifiedBy = 'ENCIK AZIZ BIN TAHIR';
+                        saveMockData();
+                        renderTable();
+                    }
+                }
+                closeVerifyModal();
+                showToast("Laporan berjaya disahkan", "green");
+            } catch(e) {
+                showToast("Ralat pengesahan", "red");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        window.printReport = function(id) {
+            const rep = reportsData.find(r => r.id === id);
+            if(!rep) return;
+
+            const dateParts = rep.date.split('-');
+            document.getElementById('p-date').textContent = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : rep.date;
+            document.getElementById('p-staff').textContent = rep.staff;
+            document.getElementById('p-room').textContent = rep.room;
+            document.getElementById('p-condition').textContent = rep.condition;
+            document.getElementById('p-desc').textContent = rep.description;
+            
+            document.getElementById('p-img1').src = rep.image1 || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            document.getElementById('p-img2').src = rep.image2 || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            
+            document.getElementById('p-staff-sign').src = rep.signatureStaff;
+            document.getElementById('p-staff-name-bottom').textContent = rep.staff;
+
+            const hmSignImg = document.getElementById('p-hm-sign');
+            const unverifiedTag = document.getElementById('p-hm-unverified');
+            
+            if(rep.status === 'DISAHKAN') {
+                hmSignImg.src = rep.signatureHM;
+                hmSignImg.classList.remove('hidden');
+                unverifiedTag.classList.add('hidden');
+            } else {
+                hmSignImg.src = '';
+                hmSignImg.classList.add('hidden');
+                unverifiedTag.classList.remove('hidden');
+            }
+
+            window.print();
+        }
+
+        // Navigation
+        window.switchTab = function(tab) {
+            if(tab === 'form') {
+                document.getElementById('view-form').classList.remove('hidden');
+                document.getElementById('view-dashboard').classList.add('hidden');
+                document.getElementById('tab-form').classList.add('bg-blue-900');
+                document.getElementById('tab-form').classList.remove('hover:bg-blue-700');
+                document.getElementById('tab-dashboard').classList.remove('bg-blue-900');
+                document.getElementById('tab-dashboard').classList.add('hover:bg-blue-700');
+                if(canvas1) { canvas1.calcOffset(); canvas1.renderAll(); }
+                if(canvas2) { canvas2.calcOffset(); canvas2.renderAll(); }
+            } else {
+                document.getElementById('view-form').classList.add('hidden');
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                document.getElementById('tab-dashboard').classList.add('bg-blue-900');
+                document.getElementById('tab-dashboard').classList.remove('hover:bg-blue-700');
+                document.getElementById('tab-form').classList.remove('bg-blue-900');
+                document.getElementById('tab-form').classList.add('hover:bg-blue-700');
+            }
+        }
+
+        // Utils
+        function showToast(msg, color) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-5 right-5 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 bg-${color}-600`;
+            t.classList.remove('opacity-0');
+            setTimeout(() => t.classList.add('opacity-0'), 3000);
+        }
+
+        function showLoading(text) {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading').classList.remove('hidden');
+        }
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        // Initialize App
+        window.onload = () => {
+            setupForm();
+            initEditors();
+            initFirebase();
+        };
+
+    </script>
+</body>
+</html>
