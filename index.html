@@ -929,9 +929,19 @@
                     })
                 });
                 
-                if (response.status === 400 || response.status === 403) {
-                    localStorage.removeItem('gemini_api_key');
-                    throw new Error("API Key tidak sah atau ralat kebenaran.");
+                // KEMASKINI: Penangkapan ralat (error handling) yang lebih menyeluruh
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const apiErrorMsg = errorData.error?.message || `HTTP Ralat ${response.status}`;
+                    
+                    if (response.status === 400 || response.status === 403 || response.status === 401) {
+                        localStorage.removeItem('gemini_api_key'); // Padam key lama supaya prompt keluar semula
+                        throw new Error("API Key tidak sah atau ralat kebenaran. Sila tekan butang Jana semula untuk masukkan key baru.");
+                    } else if (response.status === 429) {
+                        throw new Error("Kuota API Key anda telah habis (Terlalu banyak permintaan). Sila cuba sebentar lagi.");
+                    } else {
+                        throw new Error("Ralat API: " + apiErrorMsg);
+                    }
                 }
 
                 const data = await response.json();
