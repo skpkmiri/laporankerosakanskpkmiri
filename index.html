@@ -883,6 +883,7 @@
             }
         }
 
+        // ================= KEMASKINI GENERATE AI =================
         window.generateAI = async function() {
             const cat = document.getElementById('roomCategory').value;
             let room = cat;
@@ -897,36 +898,58 @@
                 return;
             }
 
+            // Meminta API Key jika belum wujud
+            let apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                apiKey = prompt("Sila masukkan API Key Gemini anda (Dapatkan percuma dari Google AI Studio):\n\n*Key anda akan disimpan dengan selamat di dalam browser ini.");
+                if (!apiKey || apiKey.trim() === "") {
+                    showToast("API Key diperlukan untuk menggunakan ciri AI ini.", "amber");
+                    return;
+                }
+                localStorage.setItem('gemini_api_key', apiKey.trim());
+            }
+
             showLoading("Menjana ayat laporan dengan AI...");
             
-            const prompt = `Bertindak sebagai kakitangan sekolah rasmi di Malaysia. Tuliskan satu perenggan formal (sekitar 3-4 ayat) untuk laporan kerosakan sekolah. 
+            const promptText = `Bertindak sebagai kakitangan sekolah rasmi di Malaysia. Tuliskan satu perenggan formal (sekitar 3-4 ayat) untuk laporan kerosakan sekolah. 
             Jenis bilik: ${room}.
             Kerosakan fizikal: ${condition}.
             Catatan/Kata Kunci Pelapor: ${currentDesc || 'tiada catatan'}.
             Gunakan laras bahasa Melayu rasmi dan formal (surat rasmi kerajaan). Jangan mulakan dengan salam, terus kepada penerangan kerosakan.`;
 
             try {
-                const apiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                // Menukar model kepada gemini-1.5-flash untuk kestabilan 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
+                        contents: [{ parts: [{ text: promptText }] }],
                     })
                 });
                 
+                if (response.status === 400 || response.status === 403) {
+                    localStorage.removeItem('gemini_api_key');
+                    throw new Error("API Key tidak sah atau ralat kebenaran.");
+                }
+
                 const data = await response.json();
+                
                 if(data.candidates && data.candidates[0].content) {
                     const text = data.candidates[0].content.parts[0].text;
                     document.getElementById('description').value = text.trim();
                     showToast("Teks berjaya dijana", "green");
                 } else {
-                    throw new Error("AI tiada respon");
+                    throw new Error("AI tiada respon: " + (data.error?.message || "Ralat tidak diketahui"));
                 }
             } catch (error) {
-                showToast("Gagal menjana teks AI", "red");
+                console.error("AI Error:", error);
+                showToast(error.message || "Gagal menjana teks AI. Sila semak API Key.", "red");
+                // Memadam kunci supaya pengguna diminta semula jika ia tidak sah
+                if (error.message.includes("tidak sah")) {
+                    localStorage.removeItem('gemini_api_key');
+                }
             } finally {
                 hideLoading();
             }
